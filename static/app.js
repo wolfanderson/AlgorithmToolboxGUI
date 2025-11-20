@@ -7,6 +7,7 @@ let draggedAlgorithm = null;
 let isConnecting = false;
 let connectionStart = null;
 let inputImage = null;
+let uploadedImageInfo = null;  // 存储上传的图片信息
 let algorithms = [];
 
 // 初始化
@@ -86,18 +87,70 @@ function setupCanvas() {
 }
 
 // 处理图片上传
-function handleImageUpload(e) {
+async function handleImageUpload(e) {
     const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            inputImage = event.target.result;
+    if (!file) return;
+    
+    // 显示上传中状态
+    const uploadBtn = document.getElementById('uploadBtn');
+    const originalText = uploadBtn.textContent;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = '上传中...';
+    
+    try {
+        // 创建FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // 上传到服务器
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 保存图片信息
+            uploadedImageInfo = {
+                filename: result.filename,
+                filepath: result.filepath,
+                url: result.url,
+                size: result.size
+            };
+            
+            // 使用服务器返回的base64或URL
+            inputImage = result.base64;
+            
+            // 显示图片
             const img = document.getElementById('inputImage');
             img.src = inputImage;
             img.style.display = 'block';
-            document.querySelector('#inputPreview .placeholder').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
+            const placeholder = document.querySelector('#inputPreview .placeholder');
+            placeholder.style.display = 'none';
+            
+            // 显示文件信息
+            const infoDiv = document.getElementById('imageInfo');
+            if (infoDiv) {
+                infoDiv.innerHTML = `
+                    <div style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">
+                        <div>文件名: ${result.filename}</div>
+                        <div>路径: ${result.filepath}</div>
+                        <div>大小: ${(result.size / 1024).toFixed(2)} KB</div>
+                    </div>
+                `;
+            }
+            
+            console.log('图片上传成功:', result);
+        } else {
+            alert('上传失败: ' + (result.error || '未知错误'));
+        }
+    } catch (error) {
+        console.error('上传错误:', error);
+        alert('上传失败: ' + error.message);
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = originalText;
     }
 }
 

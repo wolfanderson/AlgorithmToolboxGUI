@@ -27,3 +27,13 @@ wheels/
 *.swo
 *~
 
+# 上传的图片文件
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.webp
+

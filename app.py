@@ -10,12 +10,25 @@ import io
 from typing import Dict, List, Any
 import importlib
 import sys
+from datetime import datetime
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
+# 配置上传
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
 # 算法模块注册表
 ALGORITHM_MODULES = {}
+
+def allowed_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def register_algorithm(name: str, module_path: str):
     """注册算法模块"""
@@ -42,6 +55,67 @@ load_algorithm_modules()
 def index():
     """主页面"""
     return send_from_directory('static', 'index.html')
+
+@app.route('/api/upload', methods=['POST'])
+def upload_image():
+    """上传图片到服务器"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': '没有文件'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': '未选择文件'}), 400
+        
+        if file and allowed_file(file.filename):
+            # 确保上传目录存在
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+            
+            # 生成安全的文件名（时间戳 + 原始文件名）
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            original_filename = secure_filename(file.filename)
+            filename = f"{timestamp}_{original_filename}"
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            
+            # 保存文件
+            file.save(filepath)
+            
+            # 读取图片并转换为base64（用于前端显示）
+            with open(filepath, 'rb') as f:
+                image_data = f.read()
+                img_base64 = base64.b64encode(image_data).decode()
+                
+                # 获取文件扩展名以确定MIME类型
+                ext = filename.rsplit('.', 1)[1].lower()
+                mime_types = {
+                    'png': 'image/png',
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'gif': 'image/gif',
+                    'bmp': 'image/bmp',
+                    'tiff': 'image/tiff',
+                    'webp': 'image/webp'
+                }
+                mime_type = mime_types.get(ext, 'image/png')
+            
+            return jsonify({
+                'success': True,
+                'filename': filename,
+                'filepath': filepath,
+                'url': f'/uploads/{filename}',
+                'base64': f'data:{mime_type};base64,{img_base64}',
+                'size': os.path.getsize(filepath)
+            })
+        else:
+            return jsonify({'error': '不支持的文件类型'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': f'上传失败: {str(e)}'}), 500
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    """提供上传的文件"""
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 @app.route('/api/algorithms', methods=['GET'])
 def get_algorithms():
@@ -201,6 +275,7 @@ if __name__ == '__main__':
     # 确保目录存在
     os.makedirs('static', exist_ok=True)
     os.makedirs('algorithms', exist_ok=True)
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     print("=" * 50)
     print("工业质检算法组合平台")
     print("=" * 50)
