@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工业质检算法组合平台</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>工业质检算法组合平台</h1>
+            <div class="toolbar">
+                <button id="clearBtn" class="btn">清空画布</button>
+                <button id="runBtn" class="btn btn-primary">执行工作流</button>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                <button id="uploadBtn" class="btn">上传图片</button>
+            </div>
+        </header>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h2>算法库</h2>
+                <div id="algorithmList" class="algorithm-list">
+                    <!-- 算法列表将在这里动态加载 -->
+                </div>
+            </div>
+            
+            <div class="canvas-container">
+                <div id="canvas" class="canvas">
+                    <!-- 节点将在这里渲染 -->
+                </div>
+            </div>
+            
+            <div class="preview-panel">
+                <h2>预览</h2>
+                <div class="image-preview">
+                    <div id="inputPreview" class="preview-box">
+                        <h3>输入图像</h3>
+                        <img id="inputImage" src="" alt="输入图像" style="display: none;">
+                        <p class="placeholder">请上传图片</p>
+                    </div>
+                    <div id="outputPreview" class="preview-box">
+                        <h3>输出结果</h3>
+                        <img id="outputImage" src="" alt="输出结果" style="display: none;">
+                        <p class="placeholder">执行工作流后显示结果</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
+
