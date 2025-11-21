@@ -240,7 +240,9 @@ def execute_workflow():
                         # 从源节点输出中提取图像
                         if isinstance(source_output, dict):
                             # 如果是字典，尝试获取 'image' 或 'output' 键
-                            source_image = source_output.get('image') or source_output.get('output')
+                            source_image = source_output.get('image')
+                            if source_image is None:
+                                source_image = source_output.get('output')
                         elif isinstance(source_output, np.ndarray):
                             # 如果直接是数组，直接使用
                             source_image = source_output
@@ -305,7 +307,9 @@ def execute_workflow():
         
         # 将输出图像编码为base64
         if isinstance(final_output, dict):
-            output_image = final_output.get('image', final_output.get('output'))
+            output_image = final_output.get('image')
+            if output_image is None:
+                output_image = final_output.get('output')
         else:
             output_image = final_output
         
