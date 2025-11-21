@@ -187,22 +187,37 @@ def execute_workflow():
         edges = data.get('edges', [])
         input_image = data.get('inputImage')
         
+        print(f"收到执行请求:")
+        print(f"  节点数量: {len(nodes)}")
+        print(f"  边数量: {len(edges)}")
+        print(f"  输入图像: {'有' if input_image else '无'}")
+        
         if not input_image:
             return jsonify({'error': '未提供输入图像'}), 400
         
         # 解码输入图像
-        image_data = base64.b64decode(input_image.split(',')[1])
-        image = Image.open(io.BytesIO(image_data))
-        image_array = np.array(image)
+        try:
+            if ',' in input_image:
+                image_data = base64.b64decode(input_image.split(',')[1])
+            else:
+                image_data = base64.b64decode(input_image)
+            image = Image.open(io.BytesIO(image_data))
+            image_array = np.array(image)
+            print(f"  输入图像形状: {image_array.shape}")
+        except Exception as e:
+            print(f"  解码输入图像失败: {e}")
+            return jsonify({'error': f'解码输入图像失败: {str(e)}'}), 400
         
         # 构建节点执行顺序（拓扑排序）
         execution_order = topological_sort(nodes, edges)
+        print(f"  执行顺序: {execution_order}")
         
         # 存储每个节点的输出
         node_outputs = {}
         
         # 按顺序执行节点
         for node_id in execution_order:
+            print(f"\n执行节点: {node_id}")
             node = next((n for n in nodes if n['id'] == node_id), None)
             if not node:
                 continue
@@ -215,16 +230,41 @@ def execute_workflow():
             
             # 收集输入
             inputs = {}
+            connected_sources = []
             for edge in edges:
                 if edge['target'] == node_id:
                     source_node_id = edge['source']
-                    source_output_key = edge.get('sourceHandle', 'output')
+                    connected_sources.append(source_node_id)
                     if source_node_id in node_outputs:
-                        inputs[edge.get('targetHandle', 'input')] = node_outputs[source_node_id].get(source_output_key)
+                        source_output = node_outputs[source_node_id]
+                        # 从源节点输出中提取图像
+                        if isinstance(source_output, dict):
+                            # 如果是字典，尝试获取 'image' 或 'output' 键
+                            source_image = source_output.get('image') or source_output.get('output')
+                        elif isinstance(source_output, np.ndarray):
+                            # 如果直接是数组，直接使用
+                            source_image = source_output
+                        else:
+                            source_image = None
+                        
+                        if source_image is not None:
+                            target_handle = edge.get('targetHandle', 'input')
+                            # 统一使用 'image' 作为输入键
+                            inputs['image'] = source_image
+                            print(f"    从节点 {source_node_id} 获取输入图像，形状: {source_image.shape if isinstance(source_image, np.ndarray) else 'N/A'}")
+                    else:
+                        print(f"    警告: 源节点 {source_node_id} 的输出不存在")
             
             # 如果没有输入，使用原始图像
-            if not inputs:
+            if 'image' not in inputs or inputs['image'] is None:
                 inputs['image'] = image_array
+                print(f"    使用原始输入图像，形状: {image_array.shape}")
+            
+            print(f"    最终输入图像形状: {inputs['image'].shape if isinstance(inputs['image'], np.ndarray) else 'N/A'}")
+            
+            # 验证输入图像是否存在
+            if 'image' not in inputs or inputs['image'] is None:
+                return jsonify({'error': f'节点 {node_id} 缺少输入图像。节点类型: {algorithm_name}'}), 500
             
             # 获取节点参数
             parameters = node.get('data', {}).get('parameters', {})
@@ -232,8 +272,21 @@ def execute_workflow():
             # 执行算法
             try:
                 result = module.execute(inputs, parameters)
+                # 确保结果格式正确
+                if result is None:
+                    return jsonify({'error': f'节点 {node_id} 执行后未返回结果'}), 500
                 node_outputs[node_id] = result
             except Exception as e:
+                import traceback
+                error_detail = traceback.format_exc()
+                print(f"执行节点 {node_id} 时出错:")
+                print(f"  算法: {algorithm_name}")
+                print(f"  输入键: {list(inputs.keys())}")
+                print(f"  输入图像类型: {type(inputs.get('image'))}")
+                if isinstance(inputs.get('image'), np.ndarray):
+                    print(f"  输入图像形状: {inputs['image'].shape}")
+                print(f"  错误: {str(e)}")
+                print(f"  堆栈: {error_detail}")
                 return jsonify({'error': f'执行节点 {node_id} 时出错: {str(e)}'}), 500
         
         # 获取最终输出（最后一个节点或指定输出节点）
