@@ -25,6 +25,8 @@ header {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: relative;
+    z-index: 100;
 }
 
 header h1 {
@@ -35,6 +37,8 @@ header h1 {
 .toolbar {
     display: flex;
     gap: 10px;
+    position: relative;
+    z-index: 10;
 }
 
 .btn {
@@ -46,6 +50,19 @@ header h1 {
     background: #34495e;
     color: white;
     transition: background 0.3s;
+    position: relative;
+    z-index: 101;
+    pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: auto;
 }
 
 .btn:hover {

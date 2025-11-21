@@ -1,3 +1,10 @@
+// 全局错误处理
+window.addEventListener('error', (e) => {
+    console.error('全局错误:', e.error);
+    console.error('错误位置:', e.filename, ':', e.lineno);
+    alert('发生错误: ' + e.message + '\n\n请查看控制台获取详细信息。');
+});
+
 // 全局状态
 let nodes = [];
 let edges = [];
@@ -12,10 +19,54 @@ let algorithms = [];
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('页面加载完成，开始初始化...');
+    
+    // 检查关键元素是否存在
+    const uploadBtn = document.getElementById('uploadBtn');
+    const imageInput = document.getElementById('imageInput');
+    
+    if (!uploadBtn) {
+        console.error('错误: 上传按钮未找到！');
+    } else {
+        console.log('上传按钮已找到');
+    }
+    
+    if (!imageInput) {
+        console.error('错误: 文件输入框未找到！');
+    } else {
+        console.log('文件输入框已找到');
+    }
+    
     loadAlgorithms();
     setupEventListeners();
     setupCanvas();
+    
+    // 测试按钮是否可点击
+    setTimeout(() => {
+        testButtons();
+    }, 100);
+    
+    console.log('初始化完成');
 });
+
+// 测试按钮功能
+function testButtons() {
+    console.log('=== 测试按钮功能 ===');
+    const clearBtn = document.getElementById('clearBtn');
+    const runBtn = document.getElementById('runBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    
+    if (clearBtn) {
+        console.log('✓ 清空画布按钮存在，可点击:', clearBtn.style.pointerEvents !== 'none');
+    }
+    if (runBtn) {
+        console.log('✓ 执行工作流按钮存在，可点击:', runBtn.style.pointerEvents !== 'none');
+    }
+    if (uploadBtn) {
+        console.log('✓ 上传按钮存在，可点击:', uploadBtn.style.pointerEvents !== 'none');
+    }
+    console.log('=== 测试完成 ===');
+}
 
 // 加载算法列表
 async function loadAlgorithms() {
@@ -53,32 +104,139 @@ function renderAlgorithmList() {
 
 // 设置事件监听器
 function setupEventListeners() {
+    console.log('开始设置事件监听器...');
+    
     const canvas = document.getElementById('canvas');
     const clearBtn = document.getElementById('clearBtn');
     const runBtn = document.getElementById('runBtn');
     const uploadBtn = document.getElementById('uploadBtn');
     const imageInput = document.getElementById('imageInput');
     
-    // 清空画布
-    clearBtn.addEventListener('click', () => {
-        if (confirm('确定要清空画布吗？')) {
-            nodes = [];
-            edges = [];
-            renderCanvas();
-        }
-    });
+    // 清空画布按钮
+    if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('点击清空画布按钮');
+            if (confirm('确定要清空画布吗？')) {
+                nodes = [];
+                edges = [];
+                renderCanvas();
+            }
+        });
+        console.log('清空画布按钮事件已绑定');
+    } else {
+        console.error('清空画布按钮未找到');
+    }
     
-    // 执行工作流
-    runBtn.addEventListener('click', executeWorkflow);
+    // 执行工作流按钮
+    if (runBtn) {
+        runBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('点击执行工作流按钮');
+            executeWorkflow();
+        });
+        console.log('执行工作流按钮事件已绑定');
+    } else {
+        console.error('执行工作流按钮未找到');
+    }
     
-    // 上传图片
-    uploadBtn.addEventListener('click', () => imageInput.click());
-    imageInput.addEventListener('change', handleImageUpload);
+    // 上传图片按钮
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('点击上传按钮');
+            try {
+                if (imageInput) {
+                    imageInput.click();
+                } else {
+                    console.error('文件输入框不存在');
+                    alert('文件输入框未找到，请刷新页面重试');
+                }
+            } catch (error) {
+                console.error('触发文件选择失败:', error);
+                alert('无法打开文件选择对话框: ' + error.message);
+            }
+        });
+        console.log('上传按钮事件已绑定');
+    } else {
+        console.error('上传按钮未找到');
+    }
+    
+    // 文件输入框
+    if (imageInput) {
+        imageInput.addEventListener('change', (e) => {
+            console.log('文件选择改变事件触发');
+            handleImageUpload(e);
+        });
+        console.log('文件输入框事件已绑定');
+    } else {
+        console.error('文件输入框未找到');
+    }
+    
+    // 拖拽上传功能
+    const inputPreview = document.getElementById('inputPreview');
+    if (inputPreview) {
+        inputPreview.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropZone = document.getElementById('dropZone');
+            if (dropZone) {
+                dropZone.style.borderColor = '#3498db';
+                dropZone.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
+            }
+        });
+        
+        inputPreview.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropZone = document.getElementById('dropZone');
+            if (dropZone) {
+                dropZone.style.borderColor = 'transparent';
+                dropZone.style.backgroundColor = 'transparent';
+            }
+        });
+        
+        inputPreview.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropZone = document.getElementById('dropZone');
+            if (dropZone) {
+                dropZone.style.borderColor = 'transparent';
+                dropZone.style.backgroundColor = 'transparent';
+            }
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    console.log('拖拽文件:', file.name);
+                    // 创建一个模拟的change事件
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    imageInput.files = dataTransfer.files;
+                    const changeEvent = new Event('change', { bubbles: true });
+                    imageInput.dispatchEvent(changeEvent);
+                } else {
+                    alert('请拖拽图片文件');
+                }
+            }
+        });
+    }
     
     // 画布事件
-    canvas.addEventListener('drop', handleDrop);
-    canvas.addEventListener('dragover', (e) => e.preventDefault());
-    canvas.addEventListener('click', handleCanvasClick);
+    if (canvas) {
+        canvas.addEventListener('drop', handleDrop);
+        canvas.addEventListener('dragover', (e) => e.preventDefault());
+        canvas.addEventListener('click', handleCanvasClick);
+        console.log('画布事件已绑定');
+    } else {
+        console.error('画布元素未找到');
+    }
+    
+    console.log('所有事件监听器设置完成');
 }
 
 // 设置画布
@@ -89,7 +247,12 @@ function setupCanvas() {
 // 处理图片上传
 async function handleImageUpload(e) {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+        console.log('未选择文件');
+        return;
+    }
+    
+    console.log('开始上传文件:', file.name, '大小:', file.size);
     
     // 显示上传中状态
     const uploadBtn = document.getElementById('uploadBtn');
@@ -102,13 +265,25 @@ async function handleImageUpload(e) {
         const formData = new FormData();
         formData.append('file', file);
         
+        console.log('发送上传请求到 /api/upload');
+        
         // 上传到服务器
         const response = await fetch('/api/upload', {
             method: 'POST',
             body: formData
+            // 注意：不要设置 Content-Type，让浏览器自动设置（包含boundary）
         });
         
+        console.log('响应状态:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('服务器错误:', errorText);
+            throw new Error(`服务器错误: ${response.status} - ${errorText}`);
+        }
+        
         const result = await response.json();
+        console.log('服务器响应:', result);
         
         if (result.success) {
             // 保存图片信息
@@ -127,30 +302,38 @@ async function handleImageUpload(e) {
             img.src = inputImage;
             img.style.display = 'block';
             const placeholder = document.querySelector('#inputPreview .placeholder');
-            placeholder.style.display = 'none';
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
             
             // 显示文件信息
             const infoDiv = document.getElementById('imageInfo');
             if (infoDiv) {
                 infoDiv.innerHTML = `
-                    <div style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">
-                        <div>文件名: ${result.filename}</div>
-                        <div>路径: ${result.filepath}</div>
-                        <div>大小: ${(result.size / 1024).toFixed(2)} KB</div>
+                    <div style="font-size: 12px; color: #7f8c8d; margin-top: 10px; text-align: left;">
+                        <div><strong>文件名:</strong> ${result.filename}</div>
+                        <div><strong>路径:</strong> ${result.filepath}</div>
+                        <div><strong>大小:</strong> ${(result.size / 1024).toFixed(2)} KB</div>
                     </div>
                 `;
             }
             
             console.log('图片上传成功:', result);
+            alert('图片上传成功！\n文件名: ' + result.filename + '\n路径: ' + result.filepath);
         } else {
-            alert('上传失败: ' + (result.error || '未知错误'));
+            const errorMsg = result.error || '未知错误';
+            console.error('上传失败:', errorMsg);
+            alert('上传失败: ' + errorMsg);
         }
     } catch (error) {
-        console.error('上传错误:', error);
-        alert('上传失败: ' + error.message);
+        console.error('上传错误详情:', error);
+        console.error('错误堆栈:', error.stack);
+        alert('上传失败: ' + error.message + '\n\n请检查浏览器控制台获取详细信息。');
     } finally {
         uploadBtn.disabled = false;
         uploadBtn.textContent = originalText;
+        // 清空input，允许重复上传同一文件
+        e.target.value = '';
     }
 }
 

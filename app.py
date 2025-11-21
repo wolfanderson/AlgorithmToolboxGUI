@@ -60,57 +60,82 @@ def index():
 def upload_image():
     """上传图片到服务器"""
     try:
+        print(f"收到上传请求，方法: {request.method}")
+        print(f"Content-Type: {request.content_type}")
+        print(f"请求文件: {list(request.files.keys())}")
+        
         if 'file' not in request.files:
-            return jsonify({'error': '没有文件'}), 400
+            print("错误: 请求中没有 'file' 字段")
+            return jsonify({'error': '没有文件，请确保表单字段名为 file'}), 400
         
         file = request.files['file']
+        print(f"文件对象: {file}")
+        print(f"文件名: {file.filename}")
+        print(f"文件类型: {file.content_type}")
+        
         if file.filename == '':
             return jsonify({'error': '未选择文件'}), 400
         
-        if file and allowed_file(file.filename):
-            # 确保上传目录存在
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        if not allowed_file(file.filename):
+            return jsonify({'error': f'不支持的文件类型: {file.filename.rsplit(".", 1)[1] if "." in file.filename else "未知"}'}), 400
+        
+        # 确保上传目录存在
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        print(f"上传目录: {os.path.abspath(UPLOAD_FOLDER)}")
+        
+        # 生成安全的文件名（时间戳 + 原始文件名）
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        original_filename = secure_filename(file.filename)
+        filename = f"{timestamp}_{original_filename}"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        
+        print(f"保存文件到: {os.path.abspath(filepath)}")
+        
+        # 保存文件
+        file.save(filepath)
+        
+        if not os.path.exists(filepath):
+            return jsonify({'error': '文件保存失败'}), 500
+        
+        file_size = os.path.getsize(filepath)
+        print(f"文件保存成功，大小: {file_size} 字节")
+        
+        # 读取图片并转换为base64（用于前端显示）
+        with open(filepath, 'rb') as f:
+            image_data = f.read()
+            img_base64 = base64.b64encode(image_data).decode()
             
-            # 生成安全的文件名（时间戳 + 原始文件名）
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            original_filename = secure_filename(file.filename)
-            filename = f"{timestamp}_{original_filename}"
-            filepath = os.path.join(UPLOAD_FOLDER, filename)
-            
-            # 保存文件
-            file.save(filepath)
-            
-            # 读取图片并转换为base64（用于前端显示）
-            with open(filepath, 'rb') as f:
-                image_data = f.read()
-                img_base64 = base64.b64encode(image_data).decode()
-                
-                # 获取文件扩展名以确定MIME类型
-                ext = filename.rsplit('.', 1)[1].lower()
-                mime_types = {
-                    'png': 'image/png',
-                    'jpg': 'image/jpeg',
-                    'jpeg': 'image/jpeg',
-                    'gif': 'image/gif',
-                    'bmp': 'image/bmp',
-                    'tiff': 'image/tiff',
-                    'webp': 'image/webp'
-                }
-                mime_type = mime_types.get(ext, 'image/png')
-            
-            return jsonify({
-                'success': True,
-                'filename': filename,
-                'filepath': filepath,
-                'url': f'/uploads/{filename}',
-                'base64': f'data:{mime_type};base64,{img_base64}',
-                'size': os.path.getsize(filepath)
-            })
-        else:
-            return jsonify({'error': '不支持的文件类型'}), 400
+            # 获取文件扩展名以确定MIME类型
+            ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'png'
+            mime_types = {
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'gif': 'image/gif',
+                'bmp': 'image/bmp',
+                'tiff': 'image/tiff',
+                'webp': 'image/webp'
+            }
+            mime_type = mime_types.get(ext, 'image/png')
+        
+        result = {
+            'success': True,
+            'filename': filename,
+            'filepath': os.path.abspath(filepath),
+            'url': f'/uploads/{filename}',
+            'base64': f'data:{mime_type};base64,{img_base64}',
+            'size': file_size
+        }
+        
+        print(f"上传成功: {filename}")
+        return jsonify(result)
             
     except Exception as e:
-        return jsonify({'error': f'上传失败: {str(e)}'}), 500
+        import traceback
+        error_msg = str(e)
+        traceback.print_exc()
+        print(f"上传异常: {error_msg}")
+        return jsonify({'error': f'上传失败: {error_msg}'}), 500
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):

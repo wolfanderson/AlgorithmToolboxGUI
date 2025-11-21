@@ -35,11 +35,12 @@
             <div class="preview-panel">
                 <h2>预览</h2>
                 <div class="image-preview">
-                    <div id="inputPreview" class="preview-box">
+                    <div id="inputPreview" class="preview-box" style="position: relative;">
                         <h3>输入图像</h3>
                         <img id="inputImage" src="" alt="输入图像" style="display: none;">
-                        <p class="placeholder">请上传图片</p>
+                        <p class="placeholder">请上传图片<br><small>或拖拽图片到这里</small></p>
                         <div id="imageInfo"></div>
+                        <div id="dropZone" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 2px dashed transparent; border-radius: 8px; pointer-events: none;"></div>
                     </div>
                     <div id="outputPreview" class="preview-box">
                         <h3>输出结果</h3>
