@@ -56,6 +56,16 @@ def index():
     """主页面"""
     return send_from_directory('static', 'index.html')
 
+@app.route('/style.css')
+def style_css():
+    """提供CSS文件"""
+    return send_from_directory('static', 'style.css')
+
+@app.route('/app.js')
+def app_js():
+    """提供JS文件"""
+    return send_from_directory('static', 'app.js')
+
 @app.route('/api/upload', methods=['POST'])
 def upload_image():
     """上传图片到服务器"""
