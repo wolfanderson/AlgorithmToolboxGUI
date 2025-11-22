@@ -849,18 +849,80 @@ function startConnection(nodeId, portType, e) {
     
     document.addEventListener('mousemove', updateConnectionPreview);
     document.addEventListener('mouseup', finishConnection);
+    
+    // 创建预览线
+    createPreviewLine();
+}
+
+// 创建预览线
+function createPreviewLine() {
+    const canvas = document.getElementById('canvas');
+    let svg = canvas.querySelector('svg');
+    if (!svg) {
+        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        canvas.appendChild(svg);
+    }
+    
+    // 移除旧的预览线
+    const oldPreview = svg.querySelector('#preview-line');
+    if (oldPreview) {
+        oldPreview.remove();
+    }
+    
+    const previewPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    previewPath.setAttribute('id', 'preview-line');
+    previewPath.setAttribute('class', 'connection-preview');
+    svg.appendChild(previewPath);
 }
 
 // 更新连接预览
 function updateConnectionPreview(e) {
-    if (!isConnecting) return;
+    if (!isConnecting || !connectionStart) return;
     
-    // 这里可以添加连接线预览
+    const canvas = document.getElementById('canvas');
+    const svg = canvas.querySelector('svg');
+    if (!svg) return;
+    
+    const previewPath = svg.querySelector('#preview-line');
+    if (!previewPath) return;
+    
+    // 获取起始端口位置
+    const sourceNode = document.getElementById(connectionStart.nodeId);
+    if (!sourceNode) return;
+    
+    const sourcePort = sourceNode.querySelector(`.port.${connectionStart.portType}`);
+    if (!sourcePort) return;
+    
+    const sourceRect = sourcePort.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    
+    const x1 = sourceRect.left + sourceRect.width / 2 - canvasRect.left;
+    const y1 = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
+    
+    // 获取当前鼠标位置（相对于画布）
+    const x2 = e.clientX - canvasRect.left;
+    const y2 = e.clientY - canvasRect.top;
+    
+    // 绘制贝塞尔曲线
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const pathData = `M ${x1} ${y1} C ${x1 + dx * 0.5} ${y1}, ${x2 - dx * 0.5} ${y2}, ${x2} ${y2}`;
+    previewPath.setAttribute('d', pathData);
 }
 
 // 完成连接
 function finishConnection(e) {
     if (!isConnecting) return;
+    
+    // 清除预览线
+    const canvas = document.getElementById('canvas');
+    const svg = canvas.querySelector('svg');
+    if (svg) {
+        const previewPath = svg.querySelector('#preview-line');
+        if (previewPath) {
+            previewPath.remove();
+        }
+    }
     
     const target = e.target;
     if (target && target.classList && target.classList.contains('port')) {
@@ -958,11 +1020,27 @@ function renderConnections() {
         svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         canvas.appendChild(svg);
     }
-    svg.innerHTML = '';
     
+    // 保存预览线（如果存在）
+    const previewLine = svg.querySelector('#preview-line');
+    
+    // 清空所有连接线（但保留预览线）
+    const allPaths = svg.querySelectorAll('path');
+    allPaths.forEach(path => {
+        if (path.id !== 'preview-line') {
+            path.remove();
+        }
+    });
+    
+    // 重新绘制所有连接线
     edges.forEach(edge => {
         drawConnection(edge);
     });
+    
+    // 如果之前有预览线，重新添加
+    if (previewLine && svg.querySelector('#preview-line') === null) {
+        svg.appendChild(previewLine);
+    }
 }
 
 // 处理画布点击
@@ -974,6 +1052,22 @@ function handleCanvasClick(e) {
         const configPanel = document.getElementById('nodeConfigPanel');
         if (configPanel) {
             configPanel.style.display = 'none';
+        }
+        
+        // 如果正在连接，取消连接并清除预览线
+        if (isConnecting) {
+            const canvas = document.getElementById('canvas');
+            const svg = canvas.querySelector('svg');
+            if (svg) {
+                const previewPath = svg.querySelector('#preview-line');
+                if (previewPath) {
+                    previewPath.remove();
+                }
+            }
+            isConnecting = false;
+            connectionStart = null;
+            document.removeEventListener('mousemove', updateConnectionPreview);
+            document.removeEventListener('mouseup', finishConnection);
         }
     }
 }
