@@ -66,12 +66,6 @@ def execute(inputs: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any
     if roi.size == 0:
         return {'image': image, 'output': image}
     
-    # 在原图上标记ROI区域
-    result = image.copy()
-    cv2.rectangle(result, (x, y), (x + width, y + height), (0, 255, 0), 2)
-    
-    # 也可以只返回ROI区域
-    # result = roi
-    
-    return {'image': result, 'output': result, 'roi': roi}
+    # 直接返回截取的ROI区域
+    return {'image': roi, 'output': roi, 'roi': roi}
 
