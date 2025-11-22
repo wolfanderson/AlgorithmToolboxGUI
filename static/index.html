@@ -37,7 +37,10 @@
                 <div class="image-preview">
                     <div id="inputPreview" class="preview-box" style="position: relative;">
                         <h3>输入图像</h3>
-                        <img id="inputImage" src="" alt="输入图像" style="display: none;">
+                        <div id="imageContainer" style="position: relative; display: inline-block; max-width: 100%;">
+                            <img id="inputImage" src="" alt="输入图像" style="display: none; max-width: 100%; height: auto;">
+                            <div id="roiSelector" style="position: absolute; border: 2px dashed #3498db; background: rgba(52, 152, 219, 0.1); display: none; pointer-events: none;"></div>
+                        </div>
                         <p class="placeholder">请上传图片<br><small>或拖拽图片到这里</small></p>
                         <div id="imageInfo"></div>
                         <div id="dropZone" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 2px dashed transparent; border-radius: 8px; pointer-events: none;"></div>
@@ -47,6 +50,12 @@
                         <img id="outputImage" src="" alt="输出结果" style="display: none;">
                         <p class="placeholder">执行工作流后显示结果</p>
                     </div>
+                </div>
+                
+                <!-- 节点参数配置面板 -->
+                <div id="nodeConfigPanel" class="node-config-panel" style="display: none;">
+                    <h3>节点配置</h3>
+                    <div id="nodeConfigContent"></div>
                 </div>
             </div>
         </div>

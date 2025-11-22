@@ -236,7 +236,125 @@ function setupEventListeners() {
         console.error('画布元素未找到');
     }
     
+    // ROI选择事件
+    setupROISelection();
+    
     console.log('所有事件监听器设置完成');
+}
+
+// 设置ROI选择功能
+function setupROISelection() {
+    const img = document.getElementById('inputImage');
+    const container = document.getElementById('imageContainer');
+    
+    if (!img || !container) return;
+    
+    let isSelecting = false;
+    let startX = 0;
+    let startY = 0;
+    
+    container.addEventListener('mousedown', (e) => {
+        if (!roiSelecting) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        isSelecting = true;
+        const rect = container.getBoundingClientRect();
+        startX = e.clientX - rect.left;
+        startY = e.clientY - rect.top;
+        
+        const selector = document.getElementById('roiSelector');
+        if (selector) {
+            selector.style.left = startX + 'px';
+            selector.style.top = startY + 'px';
+            selector.style.width = '0px';
+            selector.style.height = '0px';
+            selector.style.display = 'block';
+        }
+    });
+    
+    container.addEventListener('mousemove', (e) => {
+        if (!roiSelecting || !isSelecting) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const rect = container.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        const width = Math.abs(currentX - startX);
+        const height = Math.abs(currentY - startY);
+        const left = Math.min(startX, currentX);
+        const top = Math.min(startY, currentY);
+        
+        const selector = document.getElementById('roiSelector');
+        if (selector) {
+            selector.style.left = left + 'px';
+            selector.style.top = top + 'px';
+            selector.style.width = width + 'px';
+            selector.style.height = height + 'px';
+        }
+    });
+    
+    container.addEventListener('mouseup', (e) => {
+        if (!roiSelecting || !isSelecting) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        isSelecting = false;
+        roiSelecting = false;
+        
+        if (container) {
+            container.classList.remove('selecting');
+        }
+        
+        // 计算相对于图片的坐标
+        const imgRect = img.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const selector = document.getElementById('roiSelector');
+        
+        if (!selector || selector.style.display === 'none') return;
+        
+        const selectorRect = selector.getBoundingClientRect();
+        
+        // 计算选择框相对于图片的位置
+        const relativeLeft = selectorRect.left - imgRect.left;
+        const relativeTop = selectorRect.top - imgRect.top;
+        
+        // 计算缩放比例
+        const scaleX = img.naturalWidth / imgRect.width;
+        const scaleY = img.naturalHeight / imgRect.height;
+        
+        // 转换为图片坐标
+        const x = Math.max(0, Math.round(relativeLeft * scaleX));
+        const y = Math.max(0, Math.round(relativeTop * scaleY));
+        const width = Math.max(1, Math.round(parseFloat(selector.style.width) * scaleX));
+        const height = Math.max(1, Math.round(parseFloat(selector.style.height) * scaleY));
+        
+        // 确保不超出图片范围
+        const finalX = Math.min(x, img.naturalWidth - 1);
+        const finalY = Math.min(y, img.naturalHeight - 1);
+        const finalWidth = Math.min(width, img.naturalWidth - finalX);
+        const finalHeight = Math.min(height, img.naturalHeight - finalY);
+        
+        // 更新输入框和节点参数
+        if (document.getElementById('roiX')) {
+            document.getElementById('roiX').value = finalX;
+            document.getElementById('roiY').value = finalY;
+            document.getElementById('roiWidth').value = finalWidth;
+            document.getElementById('roiHeight').value = finalHeight;
+            
+            // 自动应用参数
+            if (currentROINodeId) {
+                applyROIParams(currentROINodeId);
+            }
+        }
+        
+        console.log('ROI选择完成:', { x: finalX, y: finalY, width: finalWidth, height: finalHeight });
+    });
 }
 
 // 设置画布
@@ -305,6 +423,16 @@ async function handleImageUpload(e) {
             if (placeholder) {
                 placeholder.style.display = 'none';
             }
+            
+            // 图片加载后，如果有ROI选择，更新预览
+            img.onload = () => {
+                if (selectedNode) {
+                    const node = nodes.find(n => n.id === selectedNode);
+                    if (node && node.type === 'roi_extraction') {
+                        updateROIPreview();
+                    }
+                }
+            };
             
             // 显示文件信息
             const infoDiv = document.getElementById('imageInfo');
@@ -465,6 +593,248 @@ function createNodeElement(node) {
 function selectNode(nodeId) {
     selectedNode = nodeId;
     renderCanvas();
+    showNodeConfig(nodeId);
+}
+
+// 显示节点配置面板
+function showNodeConfig(nodeId) {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    const algorithm = algorithms.find(a => a.id === node.type);
+    if (!algorithm) return;
+    
+    const configPanel = document.getElementById('nodeConfigPanel');
+    const configContent = document.getElementById('nodeConfigContent');
+    
+    if (!configPanel || !configContent) return;
+    
+    // 如果是ROI提取算法，显示特殊配置界面
+    if (node.type === 'roi_extraction') {
+        showROIConfig(node, algorithm, configContent);
+    } else {
+        // 显示通用参数配置
+        showGenericConfig(node, algorithm, configContent);
+    }
+    
+    configPanel.style.display = 'block';
+}
+
+// 显示ROI配置界面
+function showROIConfig(node, algorithm, container) {
+    const params = node.data.parameters || {};
+    
+    container.innerHTML = `
+        <div class="param-group">
+            <label>ROI区域选择</label>
+            <p style="font-size: 11px; color: #7f8c8d; margin: 5px 0;">在输入图像上拖拽鼠标框选ROI区域</p>
+            <button id="enableROISelect" type="button">启用框选</button>
+            <button id="clearROISelect" type="button" style="background: #e74c3c; margin-top: 5px;">清除选择</button>
+        </div>
+        <div class="param-group">
+            <label>X坐标</label>
+            <input type="number" id="roiX" value="${params.x || 0}" min="0">
+        </div>
+        <div class="param-group">
+            <label>Y坐标</label>
+            <input type="number" id="roiY" value="${params.y || 0}" min="0">
+        </div>
+        <div class="param-group">
+            <label>宽度</label>
+            <input type="number" id="roiWidth" value="${params.width || 100}" min="1">
+        </div>
+        <div class="param-group">
+            <label>高度</label>
+            <input type="number" id="roiHeight" value="${params.height || 100}" min="1">
+        </div>
+        <button id="applyROIParams" type="button">应用参数</button>
+    `;
+    
+    // 绑定事件
+    document.getElementById('enableROISelect').addEventListener('click', () => {
+        enableROISelection(node.id);
+    });
+    
+    document.getElementById('clearROISelect').addEventListener('click', () => {
+        clearROISelection();
+    });
+    
+    document.getElementById('applyROIParams').addEventListener('click', () => {
+        applyROIParams(node.id);
+    });
+    
+    // 输入框变化时更新参数
+    ['roiX', 'roiY', 'roiWidth', 'roiHeight'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+            updateROIPreview();
+        });
+    });
+    
+    // 显示已有的ROI选择
+    setTimeout(() => {
+        updateROIPreview();
+    }, 100);
+}
+
+// 显示通用参数配置
+function showGenericConfig(node, algorithm, container) {
+    const params = node.data.parameters || {};
+    const paramDefs = algorithm.parameters || {};
+    
+    let html = '';
+    for (const [key, def] of Object.entries(paramDefs)) {
+        const value = params[key] !== undefined ? params[key] : def.default;
+        html += `
+            <div class="param-group">
+                <label>${def.label || key}</label>
+                <input type="${def.type === 'number' ? 'number' : 'text'}" 
+                       id="param_${key}" 
+                       value="${value}"
+                       ${def.min !== undefined ? `min="${def.min}"` : ''}
+                       ${def.max !== undefined ? `max="${def.max}"` : ''}>
+            </div>
+        `;
+    }
+    
+    if (html) {
+        html += '<button id="applyGenericParams" type="button">应用参数</button>';
+    } else {
+        html = '<p style="color: #7f8c8d; font-size: 12px;">该算法无需配置参数</p>';
+    }
+    
+    container.innerHTML = html;
+    
+    if (document.getElementById('applyGenericParams')) {
+        document.getElementById('applyGenericParams').addEventListener('click', () => {
+            applyGenericParams(node.id, paramDefs);
+        });
+    }
+}
+
+// 应用通用参数
+function applyGenericParams(nodeId, paramDefs) {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    const params = {};
+    for (const key of Object.keys(paramDefs)) {
+        const input = document.getElementById(`param_${key}`);
+        if (input) {
+            const value = paramDefs[key].type === 'number' ? 
+                parseFloat(input.value) : input.value;
+            params[key] = value;
+        }
+    }
+    
+    node.data.parameters = params;
+    console.log('参数已更新:', params);
+}
+
+// 启用ROI选择
+let roiSelecting = false;
+let roiStartX = 0;
+let roiStartY = 0;
+let currentROINodeId = null;
+
+function enableROISelection(nodeId) {
+    currentROINodeId = nodeId;
+    roiSelecting = true;
+    
+    const img = document.getElementById('inputImage');
+    const container = document.getElementById('imageContainer');
+    
+    if (!img || img.style.display === 'none') {
+        alert('请先上传输入图片');
+        roiSelecting = false;
+        return;
+    }
+    
+    if (container) {
+        container.classList.add('selecting');
+    }
+    
+    // 清除之前的选择
+    clearROISelection();
+}
+
+// 清除ROI选择
+function clearROISelection() {
+    const selector = document.getElementById('roiSelector');
+    if (selector) {
+        selector.style.display = 'none';
+    }
+    
+    // 清除输入框
+    if (document.getElementById('roiX')) {
+        document.getElementById('roiX').value = 0;
+        document.getElementById('roiY').value = 0;
+        document.getElementById('roiWidth').value = 100;
+        document.getElementById('roiHeight').value = 100;
+    }
+}
+
+// 更新ROI预览
+function updateROIPreview() {
+    const xInput = document.getElementById('roiX');
+    const yInput = document.getElementById('roiY');
+    const widthInput = document.getElementById('roiWidth');
+    const heightInput = document.getElementById('roiHeight');
+    
+    if (!xInput || !yInput || !widthInput || !heightInput) return;
+    
+    const x = parseInt(xInput.value || 0);
+    const y = parseInt(yInput.value || 0);
+    const width = parseInt(widthInput.value || 100);
+    const height = parseInt(heightInput.value || 100);
+    
+    const img = document.getElementById('inputImage');
+    const selector = document.getElementById('roiSelector');
+    const container = document.getElementById('imageContainer');
+    
+    if (!img || !selector || !container || img.style.display === 'none') {
+        if (selector) selector.style.display = 'none';
+        return;
+    }
+    
+    // 等待图片加载完成
+    if (!img.complete || img.naturalWidth === 0) {
+        img.onload = () => updateROIPreview();
+        return;
+    }
+    
+    const imgRect = img.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    
+    // 计算缩放比例
+    const scaleX = imgRect.width / img.naturalWidth;
+    const scaleY = imgRect.height / img.naturalHeight;
+    
+    // 计算显示坐标
+    const displayX = x * scaleX;
+    const displayY = y * scaleY;
+    const displayWidth = width * scaleX;
+    const displayHeight = height * scaleY;
+    
+    // 设置选择框位置（相对于容器）
+    selector.style.left = displayX + 'px';
+    selector.style.top = displayY + 'px';
+    selector.style.width = displayWidth + 'px';
+    selector.style.height = displayHeight + 'px';
+    selector.style.display = (width > 0 && height > 0) ? 'block' : 'none';
+}
+
+// 应用ROI参数
+function applyROIParams(nodeId) {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    const x = parseInt(document.getElementById('roiX')?.value || 0);
+    const y = parseInt(document.getElementById('roiY')?.value || 0);
+    const width = parseInt(document.getElementById('roiWidth')?.value || 100);
+    const height = parseInt(document.getElementById('roiHeight')?.value || 100);
+    
+    node.data.parameters = { x, y, width, height };
+    console.log('ROI参数已更新:', node.data.parameters);
 }
 
 // 开始连接
@@ -600,6 +970,11 @@ function handleCanvasClick(e) {
     if (e.target.id === 'canvas' || e.target.tagName === 'svg') {
         selectedNode = null;
         renderCanvas();
+        // 隐藏配置面板
+        const configPanel = document.getElementById('nodeConfigPanel');
+        if (configPanel) {
+            configPanel.style.display = 'none';
+        }
     }
 }
 
