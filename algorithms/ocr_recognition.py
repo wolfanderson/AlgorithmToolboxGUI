@@ -120,22 +120,85 @@ def execute(inputs: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any
         # use_angle_cls 已经在初始化时设置
         ocr_result = ocr.ocr(image_bgr)
         
-        # 调试信息：打印OCR结果格式
-        if ocr_result:
-            print(f"OCR结果类型: {type(ocr_result)}")
-            print(f"OCR结果长度: {len(ocr_result) if isinstance(ocr_result, (list, tuple)) else 'N/A'}")
-            if isinstance(ocr_result, list) and len(ocr_result) > 0:
-                print(f"第一层元素类型: {type(ocr_result[0])}")
-                if isinstance(ocr_result[0], list) and len(ocr_result[0]) > 0:
-                    print(f"第一行数据: {ocr_result[0][0] if len(ocr_result[0]) > 0 else 'N/A'}")
-        
         # 处理识别结果
         all_text = []
-        if ocr_result:
-            # PaddleOCR 返回格式可能是: [[line1, line2, ...]] 或直接是 [line1, line2, ...]
-            result_list = ocr_result[0] if isinstance(ocr_result, list) and len(ocr_result) > 0 and isinstance(ocr_result[0], list) else ocr_result
+        if ocr_result and isinstance(ocr_result, list) and len(ocr_result) > 0:
+            # 新版本 PaddleOCR 返回格式: [OCRResult对象或字典]
+            result_dict = ocr_result[0]
             
-            if result_list:
+            # OCRResult 对象是字典类型，可以直接使用
+            if isinstance(result_dict, dict):
+                # 新版本格式：字典格式
+                rec_texts = result_dict.get('rec_texts', [])
+                rec_scores = result_dict.get('rec_scores', [])
+                rec_polys = result_dict.get('rec_polys', [])
+                rec_boxes = result_dict.get('rec_boxes', [])
+                
+                # 调试信息
+                print(f"识别到 {len(rec_texts) if rec_texts else 0} 个文本")
+                
+                # 处理识别结果
+                # 确保 rec_texts, rec_scores, rec_polys, rec_boxes 都是列表
+                if isinstance(rec_texts, np.ndarray):
+                    rec_texts = rec_texts.tolist()
+                if isinstance(rec_scores, np.ndarray):
+                    rec_scores = rec_scores.tolist()
+                if isinstance(rec_polys, np.ndarray):
+                    rec_polys = rec_polys.tolist()
+                if isinstance(rec_boxes, np.ndarray):
+                    # rec_boxes 可能是 2D 数组，需要转换为列表
+                    if rec_boxes.ndim == 2:
+                        rec_boxes = rec_boxes.tolist()
+                    else:
+                        rec_boxes = []
+                
+                for i, text in enumerate(rec_texts):
+                    if not text:
+                        continue
+                    
+                    # 获取置信度
+                    confidence = rec_scores[i] if i < len(rec_scores) else 0.0
+                    
+                    # 添加到文本列表
+                    all_text.append(f"{text} ({confidence:.2f})")
+                    
+                    # 在图像上绘制识别框和文字
+                    if show_boxes:
+                        # 获取多边形或边界框
+                        if i < len(rec_polys) and rec_polys[i] is not None:
+                            # 使用多边形坐标
+                            poly = rec_polys[i]
+                            if isinstance(poly, (list, np.ndarray)):
+                                if isinstance(poly, np.ndarray):
+                                    poly = poly.tolist()
+                                if len(poly) >= 4:
+                                    box_array = np.array(poly, dtype=np.int32)
+                                    cv2.polylines(result, [box_array], True, (0, 255, 0), 2)
+                                    
+                                    # 在框的左上角显示文字
+                                    if len(box_array) > 0:
+                                        top_left = tuple(box_array[0])
+                                        display_text = text[:20] if len(text) > 20 else text
+                                        cv2.putText(result, display_text, top_left, 
+                                                  cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                        elif isinstance(rec_boxes, (list, np.ndarray)) and len(rec_boxes) > i:
+                            # 使用边界框坐标 [x1, y1, x2, y2]
+                            try:
+                                box = rec_boxes[i]
+                                if isinstance(box, np.ndarray):
+                                    box = box.tolist()
+                                if isinstance(box, (list, tuple)) and len(box) >= 4:
+                                    x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                                    cv2.rectangle(result, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                                    cv2.putText(result, text[:20], (x1, y1 - 5), 
+                                              cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                            except (IndexError, TypeError, ValueError) as e:
+                                print(f"绘制边界框失败: {e}")
+                                continue
+            else:
+                # 旧版本格式：列表格式 [[[[x1, y1], ...], (text, confidence)], ...]
+                result_list = result_dict if isinstance(result_dict, list) else []
+                
                 for line in result_list:
                     if not line or len(line) < 2:
                         continue
