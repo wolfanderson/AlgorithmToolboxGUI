@@ -1105,9 +1105,29 @@ async function executeWorkflow() {
         
         if (result.success) {
             const outputImg = document.getElementById('outputImage');
-            outputImg.src = result.result;
-            outputImg.style.display = 'block';
-            document.querySelector('#outputPreview .placeholder').style.display = 'none';
+            const outputText = document.getElementById('outputText');
+            const placeholder = document.querySelector('#outputPreview .placeholder');
+            
+            // 显示图像结果
+            if (result.result) {
+                outputImg.src = result.result;
+                outputImg.style.display = 'block';
+            } else {
+                outputImg.style.display = 'none';
+            }
+            
+            // 显示文本结果（如OCR识别结果）
+            if (result.text) {
+                outputText.textContent = result.text;
+                outputText.style.display = 'block';
+            } else {
+                outputText.style.display = 'none';
+            }
+            
+            // 隐藏占位符
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
         } else {
             alert('执行失败: ' + (result.error || '未知错误'));
         }

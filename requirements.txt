@@ -3,4 +3,11 @@ flask-cors>=3.0.0
 opencv-python>=4.8.0,<4.12.0
 numpy>=1.19.0
 Pillow>=9.0.0
+# PaddleOCR 依赖说明：
+# 1. 需要先安装 paddlepaddle: pip install paddlepaddle
+# 2. 然后安装 paddleocr: pip install paddleocr
+# 3. Python 3.14 可能不被支持，建议使用 Python 3.11 或 3.12
+# 4. 如果安装失败，请参考 安装说明_PaddleOCR.md
+# paddlepaddle>=2.5.0  # 需要根据Python版本选择，Python 3.14暂不支持
+# paddleocr>=2.7.0
 

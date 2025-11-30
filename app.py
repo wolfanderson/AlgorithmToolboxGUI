@@ -305,14 +305,21 @@ def execute_workflow():
         if final_output is None:
             return jsonify({'error': '没有输出结果'}), 400
         
-        # 将输出图像编码为base64
+        # 提取输出图像和文本
+        output_image = None
+        output_text = None
+        
         if isinstance(final_output, dict):
             output_image = final_output.get('image')
             if output_image is None:
                 output_image = final_output.get('output')
+            output_text = final_output.get('text')
         else:
             output_image = final_output
         
+        result_data = {'success': True}
+        
+        # 处理图像输出
         if output_image is not None:
             if isinstance(output_image, np.ndarray):
                 # 转换为PIL Image
@@ -325,11 +332,14 @@ def execute_workflow():
             buffer = io.BytesIO()
             output_image.save(buffer, format='PNG')
             img_base64 = base64.b64encode(buffer.getvalue()).decode()
-            
-            return jsonify({
-                'success': True,
-                'result': f'data:image/png;base64,{img_base64}'
-            })
+            result_data['result'] = f'data:image/png;base64,{img_base64}'
+        
+        # 处理文本输出（如OCR识别结果）
+        if output_text:
+            result_data['text'] = output_text
+        
+        if 'result' in result_data:
+            return jsonify(result_data)
         else:
             return jsonify({'error': '算法未返回图像结果'}), 400
             
