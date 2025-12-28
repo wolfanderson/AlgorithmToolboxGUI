@@ -21,21 +21,46 @@
 
 ## 安装与运行
 
-### 1. 安装依赖
+### 快速开始
+
+**Windows用户**:
+1. 双击 `install.bat` 安装依赖
+2. 双击 `run.bat` 启动服务
+3. 浏览器访问 `http://localhost:5000`
+
+**Linux/Mac用户**:
+```bash
+chmod +x install.sh && ./install.sh
+python app.py
+```
+
+### 详细步骤
+
+#### 1. 安装依赖
 
 ```bash
+# 使用虚拟环境（推荐）
+python -m venv venv
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
+
+# 安装依赖
 pip install -r requirements.txt
 ```
 
-### 2. 启动服务
+#### 2. 启动服务
 
 ```bash
 python app.py
 ```
 
-### 3. 访问平台
+#### 3. 访问平台
 
 打开浏览器访问：`http://localhost:5000`
+
+### 📖 详细运行指南
+
+更多安装和运行说明，请查看 **[运行指南.md](运行指南.md)**
 
 ## 使用说明
 
@@ -96,9 +121,17 @@ AlgorithmToolboxGUI/
 
 ## 注意事项
 
-- 当前OCR识别为模拟实现，实际使用时需要集成真实的OCR库（如Tesseract、PaddleOCR等）
-- 算法模块支持热加载，修改后重启服务即可生效
-- 工作流执行采用拓扑排序，确保按正确顺序执行
+- **OCR功能**: 支持PaddleOCR（本地）和DeepSeekOCR（大模型API），详见 [OCR使用说明.md](OCR使用说明.md)
+- **算法模块**: 支持热加载，修改后重启服务即可生效
+- **工作流执行**: 采用拓扑排序，确保按正确顺序执行
+- **Python版本**: 推荐使用Python 3.8-3.11（PaddleOCR在Python 3.14可能不支持）
+
+## 相关文档
+
+- 📖 [运行指南.md](运行指南.md) - 详细的安装和运行说明
+- 📖 [架构设计文档.md](架构设计文档.md) - 系统架构设计
+- 📖 [OCR使用说明.md](OCR使用说明.md) - OCR功能使用指南
+- 📖 [安装说明.md](安装说明.md) - 依赖安装问题排查
 
 ## 许可证
 

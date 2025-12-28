@@ -684,16 +684,44 @@ function showGenericConfig(node, algorithm, container) {
     let html = '';
     for (const [key, def] of Object.entries(paramDefs)) {
         const value = params[key] !== undefined ? params[key] : def.default;
-        html += `
-            <div class="param-group">
-                <label>${def.label || key}</label>
-                <input type="${def.type === 'number' ? 'number' : 'text'}" 
-                       id="param_${key}" 
-                       value="${value}"
-                       ${def.min !== undefined ? `min="${def.min}"` : ''}
-                       ${def.max !== undefined ? `max="${def.max}"` : ''}>
-            </div>
-        `;
+        
+        if (def.type === 'select') {
+            // 下拉选择框
+            html += `
+                <div class="param-group">
+                    <label>${def.label || key}</label>
+                    <select id="param_${key}">
+                        ${(def.options || []).map(opt => 
+                            `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+            `;
+        } else if (def.type === 'checkbox') {
+            // 复选框
+            html += `
+                <div class="param-group">
+                    <label>
+                        <input type="checkbox" id="param_${key}" ${value ? 'checked' : ''}>
+                        ${def.label || key}
+                    </label>
+                </div>
+            `;
+        } else {
+            // 文本或数字输入框
+            html += `
+                <div class="param-group">
+                    <label>${def.label || key}</label>
+                    <input type="${def.type === 'number' ? 'number' : 'text'}" 
+                           id="param_${key}" 
+                           value="${value}"
+                           ${def.min !== undefined ? `min="${def.min}"` : ''}
+                           ${def.max !== undefined ? `max="${def.max}"` : ''}
+                           ${def.step !== undefined ? `step="${def.step}"` : ''}
+                           ${def.placeholder ? `placeholder="${def.placeholder}"` : ''}>
+                </div>
+            `;
+        }
     }
     
     if (html) {
@@ -720,8 +748,16 @@ function applyGenericParams(nodeId, paramDefs) {
     for (const key of Object.keys(paramDefs)) {
         const input = document.getElementById(`param_${key}`);
         if (input) {
-            const value = paramDefs[key].type === 'number' ? 
-                parseFloat(input.value) : input.value;
+            let value;
+            if (paramDefs[key].type === 'checkbox') {
+                value = input.checked;
+            } else if (paramDefs[key].type === 'number') {
+                value = parseFloat(input.value);
+            } else if (paramDefs[key].type === 'select') {
+                value = input.value;
+            } else {
+                value = input.value;
+            }
             params[key] = value;
         }
     }
