@@ -17,6 +17,18 @@ except ImportError:
         OCRResult = None
         print("警告: OCR提供者模块未找到，将使用PaddleOCR作为默认方案")
 
+# 导入中文文本绘制工具
+try:
+    from .cv2_utils import put_text_safe
+except ImportError:
+    try:
+        from algorithms.cv2_utils import put_text_safe
+    except ImportError:
+        # 如果导入失败，使用OpenCV默认方法（不支持中文）
+        def put_text_safe(img, text, position, font_size=20, color=(0, 255, 0)):
+            return cv2.putText(img, text, position, cv2.FONT_HERSHEY_SIMPLEX, 
+                              font_size / 30.0, color, 2)
+
 def get_info():
     """返回算法信息"""
     # 获取可用的OCR提供者列表
@@ -137,8 +149,9 @@ def execute(inputs: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any
                         if len(poly) > 0:
                             top_left = tuple(poly[0])
                             display_text = text[:20] if len(text) > 20 else text
-                            cv2.putText(result, display_text, top_left, 
-                                      cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                            # 使用支持中文的文本绘制函数
+                            result = put_text_safe(result, display_text, top_left, 
+                                                 font_size=18, color=(0, 255, 0))
                     elif len(box) >= 4:
                         # 使用边界框坐标
                         # box格式: [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
@@ -147,8 +160,9 @@ def execute(inputs: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any
                         if len(box_array) > 0:
                             top_left = tuple(box_array[0])
                             display_text = text[:20] if len(text) > 20 else text
-                            cv2.putText(result, display_text, top_left, 
-                                      cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                            # 使用支持中文的文本绘制函数
+                            result = put_text_safe(result, display_text, top_left, 
+                                                 font_size=18, color=(0, 255, 0))
                 except Exception as e:
                     print(f"绘制识别框失败: {e}")
                     continue
@@ -163,9 +177,9 @@ def execute(inputs: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any
         import traceback
         traceback.print_exc()
         recognized_text = error_msg
-        # 在图像上显示错误信息
-        cv2.putText(result, "OCR识别失败", (10, 30), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        # 在图像上显示错误信息（使用支持中文的函数）
+        result = put_text_safe(result, "OCR识别失败", (10, 30), 
+                               font_size=30, color=(0, 0, 255))
     
     return {'image': result, 'output': result, 'text': recognized_text}
 

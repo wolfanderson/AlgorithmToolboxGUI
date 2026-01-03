@@ -1154,7 +1154,12 @@ async function executeWorkflow() {
             
             // 显示文本结果（如OCR识别结果）
             if (result.text) {
+                // 确保正确显示中文字符
                 outputText.textContent = result.text;
+                // 如果textContent显示为?，尝试使用innerText
+                if (outputText.textContent.includes('?') && result.text && !result.text.includes('?')) {
+                    outputText.innerText = result.text;
+                }
                 outputText.style.display = 'block';
             } else {
                 outputText.style.display = 'none';

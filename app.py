@@ -16,6 +16,9 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
+# 确保JSON响应使用UTF-8编码
+app.config['JSON_AS_ASCII'] = False
+
 # 配置上传
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
